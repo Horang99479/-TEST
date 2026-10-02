@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>한국형 스타링크 북극항로 이미지 프롬프트 생성기</title>
+<style>
+:root{--bg:#08111f;--panel:#0f1b2d;--panel2:#14243a;--line:#243750;--text:#eef4fb;--muted:#9fb0c5;--accent:#59a8ff;--chip:#17304d;--good:#63d6a2}
+*{box-sizing:border-box} body{margin:0;font-family:Arial,"Noto Sans KR",sans-serif;background:linear-gradient(180deg,#06101d,#0b1524 40%,#0a1220);color:var(--text)}
+header{padding:28px 24px 18px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(8,17,31,.96);backdrop-filter:blur(10px);z-index:5}
+header h1{margin:0 0 8px;font-size:28px} header p{margin:0;color:var(--muted);line-height:1.6}
+.wrap{max-width:1500px;margin:0 auto;padding:22px;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(360px,.75fr);gap:20px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:0 12px 40px rgba(0,0,0,.18)}
+.left{padding:18px}.right{padding:18px;position:sticky;top:118px;height:fit-content}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+button{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:700}
+button:hover{border-color:var(--accent)} .primary{background:var(--accent);color:#06101d;border-color:var(--accent)} .success{background:var(--good);color:#082117;border-color:var(--good)}
+.section{border-top:1px solid var(--line);padding:18px 0}.section:first-of-type{border-top:0}.section h2{font-size:17px;margin:0 0 12px}.hint{font-size:12px;color:var(--muted);margin:0 0 10px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}.chip{position:relative}.chip input{position:absolute;opacity:0;pointer-events:none}.chip label{display:inline-block;padding:8px 10px;border-radius:999px;background:var(--chip);border:1px solid #294663;color:#dbe8f6;font-size:13px;cursor:pointer}.chip input:checked+label{background:#255f96;border-color:#6db9ff;color:white;box-shadow:0 0 0 1px #6db9ff inset}
+.custom{display:flex;gap:8px;margin-top:10px}.custom input{flex:1;background:#0a1525;border:1px solid var(--line);color:white;padding:10px;border-radius:10px}.custom button{padding:10px 12px}
+textarea{width:100%;min-height:320px;resize:vertical;background:#08111f;color:#eef4fb;border:1px solid var(--line);border-radius:12px;padding:14px;line-height:1.6;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:13px}
+.meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}.meta select,.meta input{width:100%;background:#0a1525;color:white;border:1px solid var(--line);padding:10px;border-radius:10px}
+.output-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}.output-title h2{margin:0}.counter{font-size:12px;color:var(--muted)}
+.footer-note{color:var(--muted);font-size:12px;line-height:1.6;margin-top:10px}
+@media(max-width:980px){.wrap{grid-template-columns:1fr}.right{position:static}.meta{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>한국형 스타링크 × 북극항로 이미지 프롬프트 생성기</h1>
+  <p>키워드를 선택하면 이미지 생성용 프롬프트를 자동 조합합니다. 다중 선택, 직접 입력, 영문 중심 출력, Negative Prompt 분리가 가능합니다.</p>
+</header>
+<div class="wrap">
+  <main class="panel left">
+    <div class="toolbar">
+      <button class="primary" onclick="applyPreset('realistic')">사실적 추천 프리셋</button>
+      <button onclick="applyPreset('autonomous')">자율운항 프리셋</button>
+      <button onclick="applyPreset('logistics')">북극물류 프리셋</button>
+      <button onclick="clearAll()">전체 초기화</button>
+    </div>
+    <div id="sections"></div>
+  </main>
+
+  <aside class="panel right">
+    <div class="output-title"><h2>생성 프롬프트</h2><span class="counter" id="counter">0자</span></div>
+    <div class="meta">
+      <select id="format" onchange="generate()">
+        <option value="structured">구조형</option>
+        <option value="sentence">자연어 문장형</option>
+        <option value="compact">압축형</option>
+      </select>
+      <select id="lang" onchange="generate()">
+        <option value="mixed">한글 + 영문 혼합</option>
+        <option value="keywords">선택 키워드 그대로</option>
+      </select>
+    </div>
+    <textarea id="output" spellcheck="false"></textarea>
+    <div class="toolbar" style="margin-top:12px">
+      <button class="success" onclick="copyPrompt()">프롬프트 복사</button>
+      <button onclick="downloadTxt()">TXT 저장</button>
+      <button onclick="downloadMD()">MD 저장</button>
+    </div>
+    <p class="footer-note">팁: 위성은 <b>small distant satellites</b>, 통신 표현은 <b>subtle data links</b>, 사실성은 <b>realistic orbital scale</b>을 함께 선택하면 과도한 SF 느낌을 줄이는 데 도움이 됩니다.</p>
+  </aside>
+</div>
+<script>
+const data = {
+"Subject":["한국 국적 쇄빙 LNG 운반선","차세대 LNG 운반선","쇄빙 상선","극지 운항 선박","자율운항 LNG선","스마트 선박","무인 지원선","북극 물류선","한국형 차세대 상선","icebreaking LNG carrier","Korean LNG carrier","Arctic cargo vessel","autonomous vessel","next-generation smart ship"],
+"Mission":["북극항로 안정적 운항","북극해 통신 음영지역 해소","실시간 위성통신 유지","해빙 정보 수신","기상정보 수신","원격 선박관리","자율운항 지원","긴급 통신망 확보","실시간 항법 지원","북극 물류 최적화","선박 간 통신","육상 관제센터 연동","continuous Arctic connectivity","real-time maritime communications","autonomous navigation support","safe Northern Sea Route operation"],
+"Action":["해빙 사이를 항해","유빙을 통과","얼음을 깨며 전진","위성과 통신","실시간 데이터 송수신","해빙정보 수신","기상정보 수신","운항정보 전송","선박 상태 데이터 전송","드론으로 전방 정찰","자율항법 시스템 작동","위성 안테나 자동 추적","navigating through sea ice","transmitting real-time data","receiving ice-condition data","exchanging navigation information","satellite-linked autonomous navigation"],
+"Environment":["북극해","북극항로","Northern Sea Route","Arctic Ocean","광활한 해빙","부서진 유빙","pack ice","drifting ice floes","sea ice","빙산","얼음판","차가운 바닷물","짙은 북극해","얕은 해무","polar mist","얼음으로 덮인 수평선","낮은 구름","강풍","눈발","극지 해양환경","혹한 환경","sub-zero environment","frozen horizon","Arctic maritime environment"],
+"Satellite Network":["한국형 저궤도 위성통신망","저궤도 통신위성","LEO communication satellite","LEO satellite constellation","소형 통신위성","다수 위성 군집","위성 별자리","다중 궤도","저궤도 위성 네트워크","위성 간 링크","inter-satellite link","광통신 링크","고속 위성통신","다중 위성 핸드오버","polar orbit","near-polar orbit","global satellite network","realistic orbital distribution","small distant satellites","realistic orbital scale"],
+"Communication":["위성-선박 통신","위성 데이터 링크","선박-위성-지상국 연결","다중 위성 연결","실시간 양방향 통신","실시간 데이터 스트리밍","항법 데이터","해빙 데이터","기상 데이터","선박 상태 데이터","원격 관제 데이터","위성 핸드오버","통신 네트워크 시각화","얇은 반투명 연결선","subtle data links","faint communication lines","semi-transparent data connection","maritime satellite link","low-latency connectivity","broadband satellite communication","real-time telemetry","secure maritime communication"],
+"Korean Identity":["태극기","대한민국 국적 선박","한국형 위성통신 인프라","한국 조선산업","한국 해운산업","K-maritime technology","Korean satellite infrastructure","Korean maritime technology","국내 지상국","한국 관제센터","한국형 스마트 선박","한국형 저궤도 위성망","K-LEO network","한국형 북극 물류망","한국 기술 기반 위성통신","현대적 한국 조선 디자인","generic Korean aerospace technology","Korean industrial design language"],
+"Supporting Systems":["평면 위성 안테나","electronically steered antenna","phased-array antenna","선박용 위성 단말","maritime satellite terminal","AESA 레이더","선박 레이더","항법 레이더","GNSS","관성항법장치","자동항법시스템","자율운항 시스템","AI 기반 항법","해빙 감시 드론","UAV","해양 감시 드론","전방 감시 카메라","열상 카메라","기상 센서","해빙 센서","통합 브리지 시스템","선박 관제시스템","원격 운항센터","디지털 트윈","실시간 선박 상태 모니터링"],
+"Camera":["aerial view","drone shot","cinematic aerial shot","front-left view","front-right view","low-angle view","high-angle view","three-quarter view","wide shot","ultra-wide shot","establishing shot","24mm lens","28mm lens","35mm lens","telephoto compression","centered composition","dynamic diagonal composition","leading lines","strong depth","foreground ice","ship in midground","satellites in background","horizon in upper third","cinematic framing","documentary framing","slightly elevated camera","24mm wide-angle lens","strong foreground-to-background depth","ship moving toward the horizon"],
+"Lighting":["북극권 낮은 태양","low polar sun","golden hour","polar sunset","blue hour","soft morning light","cold blue ambient light","warm golden sunlight","diffused sunlight","overcast Arctic sky","volumetric light","soft rim light","atmospheric haze","thin Arctic mist","long shadows","dramatic cloud breaks","aurora borealis","백야","midnight sun","극야 분위기","low-angle polar sunlight","soft warm sunlight","subtle atmospheric haze"],
+"Realism":["photorealistic","ultra photorealistic","realistic proportions","physically accurate","physically based rendering","realistic maritime photography","documentary photography","realistic sea ice texture","detailed ice cracks","realistic water reflections","realistic ocean surface","frost accumulation","frozen metal surfaces","snow accumulation","ship hull weathering","metallic reflections","saltwater stains","ice buildup","condensation","realistic atmospheric perspective","realistic scale","accurate ship geometry","natural depth of field","high dynamic range","HDR","realistic motion","wake turbulence","propeller wake","natural colors","restrained saturation"],
+"Style":["cinematic maritime documentary photography","industrial photography","aerospace photography","documentary realism","National Geographic style documentary","high-end commercial photography","realistic concept visualization","near-future technology visualization","future maritime infrastructure","technologically plausible","grounded science fiction","realistic 2035 scenario","cinematic realism","clean corporate visualization","defense-industry key visual","aerospace industry key visual","engineering visualization","8K detailed photography","high detail","crisp details","natural atmospheric perspective"],
+"Time / Weather":["clear Arctic morning","overcast","light snowfall","heavy fog","polar sunset","midnight sun","calm sea","rough sea","strong Arctic wind"],
+"Composition Priority":["ship as primary focal point","satellite network as secondary focal point","strong sense of scale","wide negative space","clean visual hierarchy","no clutter"],
+"Technology Level":["present-day realistic","near future","2030","2035","2040","technologically plausible","no speculative alien technology"],
+"Negative Prompt":["giant satellites","oversized satellites","giant laser beams","neon communication beams","cyberpunk","fantasy","spaceship","space battle","excessive holograms","excessive HUD","anime","cartoon","low-poly","game graphics","unrealistic ship proportions","unrealistic sea ice","oversaturated colors","text","watermark","distorted flag","duplicated satellites","duplicated ships","floating objects","impossible perspective"]
+};
+const customData={};
+function render(){
+ const root=document.getElementById('sections'); root.innerHTML='';
+ Object.entries(data).forEach(([section,items])=>{
+   const el=document.createElement('section'); el.className='section';
+   el.innerHTML=`<h2>[${section}]</h2><p class="hint">복수 선택 가능 · 필요한 키워드만 선택하세요.</p><div class="chips" id="chips-${cssSafe(section)}"></div><div class="custom"><input id="custom-${cssSafe(section)}" placeholder="직접 키워드 입력 후 Enter 또는 추가"><button onclick="addCustom('${section.replaceAll("'","\\'")}')">추가</button></div>`;
+   root.appendChild(el);
+   const chips=el.querySelector('.chips'); items.forEach((item,i)=>chips.appendChild(makeChip(section,item,'base'+i)));
+   el.querySelector('input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addCustom(section)}});
+ });
+ generate();
+}
+function cssSafe(s){return s.replace(/[^a-zA-Z0-9가-힣]/g,'_')}
+function makeChip(section,item,id){
+ const wrap=document.createElement('span');wrap.className='chip';
+ const cid=`${cssSafe(section)}_${id}_${Math.random().toString(36).slice(2,7)}`;
+ wrap.innerHTML=`<input type="checkbox" id="${cid}" data-section="${escapeHtml(section)}" data-value="${escapeHtml(item)}" onchange="generate()"><label for="${cid}">${escapeHtml(item)}</label>`;
+ return wrap;
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function addCustom(section){
+ const input=document.getElementById('custom-'+cssSafe(section));const v=input.value.trim();if(!v)return;
+ const chips=document.getElementById('chips-'+cssSafe(section));const ch=makeChip(section,v,'custom'+Date.now());chips.appendChild(ch);ch.querySelector('input').checked=true;input.value='';generate();
+}
+function selected(){
+ const out={}; document.querySelectorAll('.chip input:checked').forEach(c=>{(out[c.dataset.section]??=[]).push(c.dataset.value)}); return out;
+}
+function generate(){
+ const s=selected(); const fmt=document.getElementById('format').value; let text='';
+ const neg=s['Negative Prompt']||[]; const positive=Object.entries(s).filter(([k])=>k!=='Negative Prompt');
+ if(fmt==='structured'){
+   text=positive.map(([k,v])=>`[${k}]\n${v.join(', ')}`).join('\n\n');
+   if(neg.length) text += `\n\n[Negative Prompt]\n${neg.join(', ')}`;
+ } else if(fmt==='compact'){
+   text=positive.flatMap(([,v])=>v).join(' + '); if(neg.length) text += `\n\nNegative Prompt: ${neg.join(', ')}`;
+ } else {
+   const all=positive.flatMap(([,v])=>v); text=all.length?`Create an ultra-detailed image featuring ${all.join(', ')}.`:''; if(neg.length) text += ` Avoid: ${neg.join(', ')}.`;
+ }
+ document.getElementById('output').value=text; document.getElementById('counter').textContent=text.length+'자';
+}
+function setChecked(values){
+ document.querySelectorAll('.chip input').forEach(c=>{c.checked=values.includes(c.dataset.value)}); generate();
+}
+function applyPreset(type){
+ const p={
+ realistic:["icebreaking LNG carrier","safe Northern Sea Route operation","navigating through sea ice","Arctic Ocean","drifting ice floes","LEO satellite constellation","small distant satellites","realistic orbital scale","subtle data links","maritime satellite link","태극기","phased-array antenna","GNSS","front-left view","slightly elevated camera","24mm wide-angle lens","ship moving toward the horizon","low-angle polar sunlight","cold blue ambient light","subtle atmospheric haze","ultra photorealistic","realistic sea ice texture","realistic water reflections","realistic scale","cinematic maritime documentary photography","technologically plausible","ship as primary focal point","satellite network as secondary focal point","clean visual hierarchy","near future","giant satellites","giant laser beams","neon communication beams","cyberpunk","spaceship","unrealistic ship proportions","oversaturated colors","watermark"],
+ autonomous:["자율운항 LNG선","자율운항 지원","실시간 항법 지원","satellite-linked autonomous navigation","receiving ice-condition data","Northern Sea Route","한국형 저궤도 위성통신망","low-latency connectivity","real-time telemetry","한국형 스마트 선박","AI 기반 항법","해빙 감시 드론","GNSS","cinematic aerial shot","strong depth","cold blue ambient light","photorealistic","realistic motion","near-future technology visualization","2035","excessive HUD","spaceship","game graphics","duplicated ships"],
+ logistics:["북극 물류선","북극 물류 최적화","육상 관제센터 연동","실시간 데이터 송수신","Arctic Ocean","북극항로","global satellite network","선박-위성-지상국 연결","broadband satellite communication","한국형 북극 물류망","원격 운항센터","통합 브리지 시스템","aerial view","wide shot","low polar sun","realistic maritime photography","future maritime infrastructure","clean corporate visualization","wide negative space","strong sense of scale","near future","giant laser beams","fantasy","excessive holograms","impossible perspective"]
+ }; setChecked(p[type]);
+}
+function clearAll(){document.querySelectorAll('.chip input').forEach(c=>c.checked=false);generate()}
+async function copyPrompt(){const t=document.getElementById('output').value;await navigator.clipboard.writeText(t);event.target.textContent='복사 완료';setTimeout(()=>event.target.textContent='프롬프트 복사',1000)}
+function save(name,type){const blob=new Blob([document.getElementById('output').value],{type});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+function downloadTxt(){save('북극항로_이미지_프롬프트.txt','text/plain;charset=utf-8')}
+function downloadMD(){save('북극항로_이미지_프롬프트.md','text/markdown;charset=utf-8')}
+render();
+</script>
+</body>
+</html>
